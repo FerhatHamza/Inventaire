@@ -2,90 +2,519 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Epipharm Vigilance</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventaire EPSP Berriane</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.13.3/cdn.min.js" defer></script>
-    <link rel="stylesheet" href="style.css">
-    <script src="app.js" defer></script>
-</head>
-<body class="text-slate-800 bg-gray-50" x-data="app()">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS pour Export Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.css"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-    <div x-show="!currentUser" x-cloak class="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-b from-blue-900 to-slate-800">
-        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm">
-            <h1 class="text-3xl font-extrabold text-blue-800 text-center mb-6">Epipharm Vigilance</h1>
-            <form @submit.prevent="login" class="space-y-4">
-                <input type="email" x-model="loginForm.email" class="w-full p-3 border rounded" placeholder="Email" required>
-                <input type="password" x-model="loginForm.password" class="w-full p-3 border rounded" placeholder="Mot de passe" required>
-                <button type="submit" class="w-full bg-blue-700 text-white py-3 rounded font-bold" :disabled="loading">
-                    <span x-show="!loading">Se Connecter</span>
-                    <span x-show="loading">Connexion...</span>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        epsp: {
+                            50: '#f0f9ff',
+                            600: '#0284c7', // Bleu médical
+                            800: '#075985',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Styles pour l'impression */
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white; font-size: 12px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid black; padding: 5px; }
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex flex-col">
+
+    <!-- CONFIGURATION API -->
+    <script>
+        const API_URL = "https://inventory.ferhathamza17.workers.dev/api";
+    </script>
+
+    <!-- NOTIFICATIONS -->
+    <div id="toast" class="fixed top-5 right-5 z-50 hidden bg-white shadow-lg rounded px-4 py-3 border-l-4"></div>
+
+    <!-- AUTHENTIFICATION (LOGIN) -->
+    <section id="auth-view" class="flex-grow flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-md border-t-4 border-epsp-600">
+            <div class="text-center mb-6">
+                <i class="fa-solid fa-hospital text-4xl text-epsp-600 mb-2"></i>
+                <h1 class="text-2xl font-bold text-gray-700">EPSP Berriane</h1>
+                <p class="text-sm text-gray-500">Recensement des Immobilisations</p>
+            </div>
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Email</label>
+                    <input type="email" id="email" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-epsp-600 focus:ring focus:ring-epsp-600 focus:ring-opacity-50 p-2 border" placeholder="nom@epsp.dz">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Mot de passe</label>
+                    <input type="password" id="password" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-epsp-600 focus:ring focus:ring-epsp-600 focus:ring-opacity-50 p-2 border">
+                </div>
+                <button type="submit" class="w-full bg-epsp-600 hover:bg-epsp-800 text-white font-bold py-2 px-4 rounded transition duration-200">
+                    Se connecter
                 </button>
             </form>
-            <p x-show="error" class="text-red-500 text-sm mt-4 text-center" x-text="error"></p>
+            <div id="login-error" class="mt-4 text-center text-red-500 text-sm hidden"></div>
         </div>
-    </div>
+    </section>
 
-    <div x-show="currentUser" x-cloak>
-        <header class="bg-blue-800 text-white p-4 sticky top-0 z-50 shadow-md">
-            <div class="max-w-5xl mx-auto flex justify-between items-center">
-                <div>
-                    <h1 class="font-bold">Inventaire EPSPB</h1>
-                    <small class="text-blue-200" x-text="currentUser?.first_name + ' ' + currentUser?.last_name"></small>
+    <!-- APPLICATION PRINCIPALE -->
+    <section id="app-view" class="hidden flex-col h-full min-h-screen">
+        
+        <!-- Navbar -->
+        <nav class="bg-epsp-800 text-white shadow-md no-print">
+            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    <span class="font-bold text-lg hidden sm:inline">Inventaire EPSP</span>
                 </div>
-                <div class="flex gap-2">
-                    <button @click="showProfile = true" class="bg-blue-700 p-2 rounded">⚙️</button>
-                    <button @click="logout" class="bg-red-500 px-3 py-2 rounded font-bold">Sortir</button>
+                <div class="flex items-center space-x-4">
+                    <span id="user-display" class="text-sm text-gray-200"></span>
+                    <button onclick="openPasswordModal()" class="hover:text-white text-gray-300" title="Changer mot de passe">
+                        <i class="fa-solid fa-key"></i>
+                    </button>
+                    <button onclick="logout()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">
+                        <i class="fa-solid fa-sign-out-alt"></i>
+                    </button>
                 </div>
             </div>
-        </header>
+        </nav>
 
-        <main class="max-w-5xl mx-auto p-4 space-y-6">
-            <div class="bg-white p-5 rounded-xl shadow border border-gray-200">
-                <h2 class="font-bold mb-4">Nouveau Matériel</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input type="text" x-model="newItem.inv_number" placeholder="N° Inventaire (ex: EPSPB/...)" class="p-2 border rounded">
-                    <input type="text" x-model="newItem.designation" placeholder="Désignation" class="p-2 border rounded">
-                    <select x-model="newItem.category" class="p-2 border rounded">
-                        <option value="Informatique">Informatique</option>
-                        <option value="Mobilier">Mobilier</option>
-                        <option value="Médical">Médical</option>
-                        <option value="Autre">Autre</option>
-                    </select>
-                    <input type="text" x-model="newItem.location" placeholder="Localisation" class="p-2 border rounded">
-                    <select x-model="newItem.condition" class="p-2 border rounded">
-                        <option value="Bon">✅ Bon État</option>
-                        <option value="Moyen">⚠️ Moyen</option>
-                        <option value="HS">❌ HS</option>
-                    </select>
-                    <input type="text" x-model="newItem.observations" placeholder="Observations" class="p-2 border rounded md:col-span-2">
+        <!-- Contenu -->
+        <main class="flex-grow container mx-auto px-4 py-6">
+            
+            <!-- Actions Bar -->
+            <div class="bg-white p-4 rounded-lg shadow mb-6 no-print flex flex-col md:flex-row justify-between items-center gap-4">
+                <button onclick="openModal()" class="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-plus"></i> Ajouter Matériel
+                </button>
+                
+                <div class="flex gap-2 w-full md:w-auto">
+                    <input type="text" id="search-input" placeholder="Rechercher (Inv, Nom, Bureau)..." class="flex-grow border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-epsp-600">
+                    <button onclick="exportToExcel()" class="bg-green-700 hover:bg-green-800 text-white px-3 py-2 rounded" title="Exporter Excel">
+                        <i class="fa-solid fa-file-excel"></i>
+                    </button>
+                    <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded" title="Imprimer">
+                        <i class="fa-solid fa-print"></i>
+                    </button>
                 </div>
-                <button @click="addItem" class="w-full mt-4 bg-emerald-600 text-white py-3 rounded font-bold">Enregistrer</button>
             </div>
 
-            <div class="space-y-3">
-                <template x-for="item in items" :key="item.id">
-                    <div class="bg-white p-4 rounded shadow border-l-4" :class="{'border-green-500': item.condition==='Bon', 'border-yellow-500': item.condition==='Moyen', 'border-red-500': item.condition==='HS'}">
-                        <div class="flex justify-between">
-                            <span class="font-bold" x-text="item.designation"></span>
-                            <span class="text-xs text-gray-500" x-text="item.inv_number"></span>
-                        </div>
-                        <div class="text-sm text-gray-600 mt-1">
-                            📍 <span x-text="item.location"></span> | 🏷️ <span x-text="item.category"></span>
-                        </div>
-                    </div>
-                </template>
+            <!-- Stats Mobile -->
+            <div class="grid grid-cols-3 gap-4 mb-4 md:hidden no-print text-center">
+                <div class="bg-white p-2 rounded shadow border-l-4 border-blue-500">
+                    <div class="text-xs text-gray-500">Total</div>
+                    <div class="font-bold" id="stat-total">0</div>
+                </div>
+                <div class="bg-white p-2 rounded shadow border-l-4 border-green-500">
+                    <div class="text-xs text-gray-500">Bon</div>
+                    <div class="font-bold" id="stat-good">0</div>
+                </div>
+                <div class="bg-white p-2 rounded shadow border-l-4 border-red-500">
+                    <div class="text-xs text-gray-500">HS</div>
+                    <div class="font-bold" id="stat-hs">0</div>
+                </div>
+            </div>
+
+            <!-- Header Impression -->
+            <div class="hidden print-only mb-6 text-center">
+                <h2 class="text-2xl font-bold">État de Recensement des Immobilisations</h2>
+                <p>EPSP Berriane - <span id="print-date"></span></p>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loader" class="hidden justify-center py-10">
+                <div class="loader"></div>
+            </div>
+
+            <!-- Table -->
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full leading-normal" id="inventory-table">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-600 uppercase text-xs leading-normal">
+                                <th class="py-3 px-6 text-left">N° Inventaire</th>
+                                <th class="py-3 px-6 text-left">Désignation</th>
+                                <th class="py-3 px-6 text-center">État</th>
+                                <th class="py-3 px-6 text-left">Localisation</th>
+                                <th class="py-3 px-6 text-left hidden md:table-cell">Catégorie</th>
+                                <th class="py-3 px-6 text-left hidden md:table-cell">Observations</th>
+                                <th class="py-3 px-6 text-left hidden md:table-cell">Saisie par</th>
+                                <th class="py-3 px-6 text-center no-print">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body" class="text-gray-600 text-sm font-light">
+                            <!-- Les données seront injectées ici par JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Message si vide -->
+            <div id="empty-state" class="hidden text-center py-10 text-gray-500">
+                <i class="fa-solid fa-box-open text-4xl mb-3"></i>
+                <p>Aucun matériel recensé pour le moment.</p>
             </div>
         </main>
+    </section>
 
-        <div x-show="showProfile" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" style="display:none">
-            <div class="bg-white p-6 rounded-lg w-full max-w-sm" @click.away="showProfile = false">
-                <h3 class="font-bold text-lg mb-4">Changer mot de passe</h3>
-                <input type="password" x-model="passForm.new" placeholder="Nouveau pass" class="w-full p-2 border rounded mb-4">
-                <button @click="changePassword" class="w-full bg-blue-600 text-white py-2 rounded">Valider</button>
-                <button @click="showProfile = false" class="w-full mt-2 text-gray-500">Annuler</button>
+    <!-- MODAL AJOUT -->
+    <div id="modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-40 no-print">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-900">Nouvelle fiche d'inventaire</h3>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-red-500"><i class="fa-solid fa-times"></i></button>
             </div>
+            <form id="inventory-form" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">N° Inventaire</label>
+                        <input type="text" name="inv_number" required placeholder="Ex: INV-2024-001" class="w-full border rounded p-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Catégorie</label>
+                        <select name="category" class="w-full border rounded p-2 text-sm bg-white">
+                            <option value="Informatique">Informatique</option>
+                            <option value="Mobilier">Mobilier de Bureau</option>
+                            <option value="Electronique">Électronique</option>
+                            <option value="Medical">Médical</option>
+                            <option value="Autre">Autre</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Désignation</label>
+                    <input type="text" name="designation" required placeholder="Nom du matériel" class="w-full border rounded p-2 text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">État</label>
+                        <select name="condition" class="w-full border rounded p-2 text-sm bg-white">
+                            <option value="Bon">Bon</option>
+                            <option value="Moyen">Moyen</option>
+                            <option value="HS">HS (Hors Service)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Localisation</label>
+                        <input type="text" name="location" required placeholder="Bureau 102" class="w-full border rounded p-2 text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Observations</label>
+                    <textarea name="observations" rows="2" placeholder="R.A.S" class="w-full border rounded p-2 text-sm"></textarea>
+                </div>
+                <div class="flex justify-end pt-2">
+                    <button type="button" onclick="closeModal()" class="mr-2 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Annuler</button>
+                    <button type="submit" class="px-4 py-2 bg-epsp-600 text-white rounded hover:bg-epsp-800">Enregistrer</button>
+                </div>
+            </form>
         </div>
     </div>
+
+    <!-- MODAL MOT DE PASSE -->
+    <div id="password-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-40 no-print">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-sm shadow-lg rounded-md bg-white">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Changer mot de passe</h3>
+            <form id="password-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700">Nouveau mot de passe</label>
+                    <input type="password" id="new-password" required class="w-full border rounded p-2 mt-1">
+                </div>
+                <div class="flex justify-end pt-2">
+                    <button type="button" onclick="closePasswordModal()" class="mr-2 px-4 py-2 bg-gray-200 text-gray-800 rounded">Annuler</button>
+                    <button type="submit" class="px-4 py-2 bg-epsp-600 text-white rounded">Changer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- LOGIC JAVASCRIPT -->
+    <script>
+        let currentUser = null;
+        let inventoryData = [];
+
+        // --- INIT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('print-date').innerText = new Date().toLocaleDateString('fr-FR');
+            checkSession();
+        });
+
+        // --- AUTH ---
+        function checkSession() {
+            const token = localStorage.getItem('token');
+            const userStr = localStorage.getItem('user');
+            if (token && userStr) {
+                currentUser = JSON.parse(userStr);
+                document.getElementById('user-display').innerText = `${currentUser.first_name} ${currentUser.last_name}`;
+                showApp();
+            } else {
+                showLogin();
+            }
+        }
+
+        function showLogin() {
+            document.getElementById('auth-view').classList.remove('hidden');
+            document.getElementById('app-view').classList.add('hidden');
+        }
+
+        function showApp() {
+            document.getElementById('auth-view').classList.add('hidden');
+            document.getElementById('app-view').classList.remove('hidden');
+            document.getElementById('app-view').classList.add('flex');
+            fetchInventory();
+        }
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('login-error');
+            
+            errorDiv.classList.add('hidden');
+
+            try {
+                const res = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await res.json();
+                
+                if (!res.ok) throw new Error(data.error || 'Erreur de connexion');
+
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+                checkSession();
+
+            } catch (err) {
+                errorDiv.innerText = err.message;
+                errorDiv.classList.remove('hidden');
+            }
+        });
+
+        function logout() {
+            localStorage.clear();
+            currentUser = null;
+            location.reload();
+        }
+
+        // --- INVENTORY LOGIC ---
+        async function fetchInventory() {
+            const loader = document.getElementById('loader');
+            const tbody = document.getElementById('table-body');
+            const emptyState = document.getElementById('empty-state');
+            
+            loader.classList.remove('hidden');
+            tbody.innerHTML = '';
+            loader.classList.add('flex');
+
+            try {
+                const res = await fetch(`${API_URL}/inventory`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                if (res.status === 401) return logout();
+                
+                inventoryData = await res.json();
+                renderTable(inventoryData);
+                updateStats(inventoryData);
+
+            } catch (err) {
+                showToast('Erreur de chargement', 'red');
+            } finally {
+                loader.classList.add('hidden');
+                loader.classList.remove('flex');
+            }
+        }
+
+        function renderTable(items) {
+            const tbody = document.getElementById('table-body');
+            const emptyState = document.getElementById('empty-state');
+            
+            tbody.innerHTML = '';
+            
+            if (items.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            items.forEach(item => {
+                let badgeClass = '';
+                if(item.condition === 'Bon') badgeClass = 'bg-green-200 text-green-700';
+                else if(item.condition === 'Moyen') badgeClass = 'bg-yellow-200 text-yellow-700';
+                else badgeClass = 'bg-red-200 text-red-700';
+
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-gray-200 hover:bg-gray-50';
+                tr.innerHTML = `
+                    <td class="py-3 px-6 text-left whitespace-nowrap font-medium">${item.inv_number}</td>
+                    <td class="py-3 px-6 text-left">
+                        <span class="block text-gray-900 font-bold md:font-normal">${item.designation}</span>
+                        <span class="md:hidden text-xs text-gray-500 block">${item.category}</span>
+                    </td>
+                    <td class="py-3 px-6 text-center">
+                        <span class="${badgeClass} py-1 px-3 rounded-full text-xs font-bold">${item.condition}</span>
+                    </td>
+                    <td class="py-3 px-6 text-left text-xs md:text-sm">${item.location}</td>
+                    <td class="py-3 px-6 text-left hidden md:table-cell text-xs">${item.category}</td>
+                    <td class="py-3 px-6 text-left hidden md:table-cell text-xs italic">${item.observations || '-'}</td>
+                    <td class="py-3 px-6 text-left hidden md:table-cell text-xs text-gray-400">${item.first_name || 'Admin'}</td>
+                    <td class="py-3 px-6 text-center no-print">
+                        <button onclick="deleteItem(${item.id})" class="text-red-500 hover:text-red-700 transform hover:scale-110">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- SEARCH ---
+        document.getElementById('search-input').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = inventoryData.filter(item => 
+                item.inv_number.toLowerCase().includes(term) ||
+                item.designation.toLowerCase().includes(term) ||
+                item.location.toLowerCase().includes(term)
+            );
+            renderTable(filtered);
+        });
+
+        // --- ADD ITEM ---
+        document.getElementById('inventory-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+
+            try {
+                const res = await fetch(`${API_URL}/inventory`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (res.ok) {
+                    showToast('Fiche créée avec succès', 'green');
+                    closeModal();
+                    e.target.reset();
+                    fetchInventory();
+                } else {
+                    throw new Error('Erreur sauvegarde');
+                }
+            } catch (err) {
+                showToast('Erreur lors de l\'enregistrement', 'red');
+            }
+        });
+
+        async function deleteItem(id) {
+            if(!confirm('Voulez-vous vraiment supprimer cet élément ?')) return;
+            
+            try {
+                const res = await fetch(`${API_URL}/inventory/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                if(res.ok) {
+                    showToast('Élément supprimé', 'blue');
+                    fetchInventory();
+                }
+            } catch(err) {
+                showToast('Erreur suppression', 'red');
+            }
+        }
+
+        // --- PASSWORD CHANGE ---
+        document.getElementById('password-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newPassword = document.getElementById('new-password').value;
+            try {
+                const res = await fetch(`${API_URL}/change-password`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ newPassword })
+                });
+                if(res.ok) {
+                    showToast('Mot de passe mis à jour', 'green');
+                    closePasswordModal();
+                } else {
+                    showToast('Erreur serveur', 'red');
+                }
+            } catch(err) {
+                showToast('Erreur technique', 'red');
+            }
+        });
+
+        // --- UTILS ---
+        function updateStats(items) {
+            document.getElementById('stat-total').innerText = items.length;
+            document.getElementById('stat-good').innerText = items.filter(i => i.condition === 'Bon').length;
+            document.getElementById('stat-hs').innerText = items.filter(i => i.condition === 'HS').length;
+        }
+
+        function exportToExcel() {
+            const wb = XLSX.utils.book_new();
+            // Formatter les données pour l'export (retirer les IDs, nettoyer)
+            const exportData = inventoryData.map(item => ({
+                "N° Inventaire": item.inv_number,
+                "Désignation": item.designation,
+                "État": item.condition,
+                "Localisation": item.location,
+                "Catégorie": item.category,
+                "Observations": item.observations,
+                "Saisie par": `${item.first_name} ${item.last_name}`,
+                "Date Saisie": item.created_at
+            }));
+            
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            XLSX.utils.book_append_sheet(wb, ws, "Inventaire");
+            XLSX.writeFile(wb, "Inventaire_EPSP_Berriane.xlsx");
+        }
+
+        function showToast(msg, color) {
+            const t = document.getElementById('toast');
+            t.className = `fixed top-5 right-5 z-50 bg-white shadow-lg rounded px-4 py-3 border-l-4 border-${color}-500 flex items-center animate-bounce`;
+            t.innerHTML = `<i class="fa-solid fa-info-circle text-${color}-500 mr-2"></i> ${msg}`;
+            t.classList.remove('hidden');
+            setTimeout(() => t.classList.add('hidden'), 3000);
+        }
+
+        // Modals
+        const openModal = () => document.getElementById('modal').classList.remove('hidden');
+        const closeModal = () => document.getElementById('modal').classList.add('hidden');
+        const openPasswordModal = () => document.getElementById('password-modal').classList.remove('hidden');
+        const closePasswordModal = () => document.getElementById('password-modal').classList.add('hidden');
+    </script>
 </body>
 </html>
