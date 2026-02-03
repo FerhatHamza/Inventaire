@@ -1,520 +1,338 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventaire EPSP Berriane</title>
-    <!-- Tailwind CSS -->
+    <title>جرد المؤسسة العمومية للصحة الجوارية - بريان</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- SheetJS pour Export Excel -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.css"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
 
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    colors: {
-                        epsp: {
-                            50: '#f0f9ff',
-                            600: '#0284c7', // Bleu médical
-                            800: '#075985',
-                        }
-                    }
+                    fontFamily: { sans: ['Tajawal', 'sans-serif'] },
+                    colors: { epsp: { 50: '#f0f9ff', 600: '#0284c7', 800: '#075985' } }
                 }
             }
         }
     </script>
     <style>
-        /* Styles pour l'impression */
-        @media print {
-            .no-print { display: none !important; }
-            .print-only { display: block !important; }
-            body { background: white; font-size: 12px; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid black; padding: 5px; }
-        }
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-        }
+        body { font-family: 'Tajawal', sans-serif; }
+        @media print { .no-print { display: none !important; } }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #0284c7; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex flex-col">
+<body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col">
 
-    <!-- CONFIGURATION API -->
-    <script>
-        const API_URL = "https://inventory.ferhathamza17.workers.dev/api";
-    </script>
+    <script>const API_URL = "https://inventory.ferhathamza17.workers.dev/api";</script>
 
-    <!-- NOTIFICATIONS -->
-    <div id="toast" class="fixed top-5 right-5 z-50 hidden bg-white shadow-lg rounded px-4 py-3 border-l-4"></div>
+    <div id="toast" class="fixed top-5 left-5 z-50 hidden bg-white shadow-lg rounded px-4 py-3 border-r-4 border-epsp-600 flex items-center"></div>
 
-    <!-- AUTHENTIFICATION (LOGIN) -->
+    <!-- Login View -->
     <section id="auth-view" class="flex-grow flex items-center justify-center p-4">
         <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-md border-t-4 border-epsp-600">
             <div class="text-center mb-6">
                 <i class="fa-solid fa-hospital text-4xl text-epsp-600 mb-2"></i>
-                <h1 class="text-2xl font-bold text-gray-700">EPSP Berriane</h1>
-                <p class="text-sm text-gray-500">Recensement des Immobilisations</p>
+                <h1 class="text-2xl font-bold">EPSP Berriane</h1>
+                <p class="text-sm text-gray-500">نظام جرد الممتلكات والمعدات</p>
             </div>
             <form id="login-form" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Email</label>
-                    <input type="email" id="email" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-epsp-600 focus:ring focus:ring-epsp-600 focus:ring-opacity-50 p-2 border" placeholder="nom@epsp.dz">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Mot de passe</label>
-                    <input type="password" id="password" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-epsp-600 focus:ring focus:ring-epsp-600 focus:ring-opacity-50 p-2 border">
-                </div>
-                <button type="submit" class="w-full bg-epsp-600 hover:bg-epsp-800 text-white font-bold py-2 px-4 rounded transition duration-200">
-                    Se connecter
-                </button>
+                <input type="email" id="email" required class="w-full border rounded-md p-2 text-left" placeholder="البريد الإلكتروني" dir="ltr">
+                <input type="password" id="password" required class="w-full border rounded-md p-2 text-left" placeholder="كلمة المرور" dir="ltr">
+                <button type="submit" class="w-full bg-epsp-600 hover:bg-epsp-800 text-white font-bold py-2 rounded transition">تسجيل الدخول</button>
             </form>
             <div id="login-error" class="mt-4 text-center text-red-500 text-sm hidden"></div>
         </div>
     </section>
 
-    <!-- APPLICATION PRINCIPALE -->
-    <section id="app-view" class="hidden flex-col h-full min-h-screen">
-        
-        <!-- Navbar -->
+    <!-- Main View -->
+    <section id="app-view" class="hidden flex-col min-h-screen">
         <nav class="bg-epsp-800 text-white shadow-md no-print">
             <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-                <div class="flex items-center space-x-2">
-                    <i class="fa-solid fa-clipboard-list"></i>
-                    <span class="font-bold text-lg hidden sm:inline">Inventaire EPSP</span>
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-clipboard-list text-xl"></i>
+                    <span class="font-bold">جرد المؤسسة</span>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <span id="user-display" class="text-sm text-gray-200"></span>
-                    <button onclick="openPasswordModal()" class="hover:text-white text-gray-300" title="Changer mot de passe">
-                        <i class="fa-solid fa-key"></i>
+                <div class="flex items-center gap-4">
+                    <span id="user-display" class="text-sm font-medium"></span>
+                    <button id="admin-btn" onclick="openUserModal()" class="hidden bg-amber-600 hover:bg-amber-700 p-1.5 rounded" title="إضافة مستخدم">
+                        <i class="fa-solid fa-user-plus"></i>
                     </button>
-                    <button onclick="logout()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">
-                        <i class="fa-solid fa-sign-out-alt"></i>
-                    </button>
+                    <button onclick="openPasswordModal()" class="text-gray-300 hover:text-white"><i class="fa-solid fa-key"></i></button>
+                    <button onclick="logout()" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-sm"><i class="fa-solid fa-sign-out-alt"></i></button>
                 </div>
             </div>
         </nav>
 
-        <!-- Contenu -->
         <main class="flex-grow container mx-auto px-4 py-6">
-            
-            <!-- Actions Bar -->
             <div class="bg-white p-4 rounded-lg shadow mb-6 no-print flex flex-col md:flex-row justify-between items-center gap-4">
-                <button onclick="openModal()" class="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-plus"></i> Ajouter Matériel
+                <button onclick="openModal()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-plus"></i> إضافة عتاد جديد
                 </button>
-                
                 <div class="flex gap-2 w-full md:w-auto">
-                    <input type="text" id="search-input" placeholder="Rechercher (Inv, Nom, Bureau)..." class="flex-grow border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-epsp-600">
-                    <button onclick="exportToExcel()" class="bg-green-700 hover:bg-green-800 text-white px-3 py-2 rounded" title="Exporter Excel">
-                        <i class="fa-solid fa-file-excel"></i>
-                    </button>
-                    <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded" title="Imprimer">
-                        <i class="fa-solid fa-print"></i>
+                    <input type="text" id="search-input" placeholder="بحث (رقم، اسم، مكتب)..." class="flex-grow border rounded px-3 py-2 text-sm focus:ring-2 focus:ring-epsp-600 outline-none">
+                    <button onclick="generatePDF()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded shadow flex items-center gap-2">
+                        <i class="fa-solid fa-file-pdf"></i> تقرير PDF
                     </button>
                 </div>
             </div>
 
-            <!-- Stats Mobile -->
-            <div class="grid grid-cols-3 gap-4 mb-4 md:hidden no-print text-center">
-                <div class="bg-white p-2 rounded shadow border-l-4 border-blue-500">
-                    <div class="text-xs text-gray-500">Total</div>
-                    <div class="font-bold" id="stat-total">0</div>
-                </div>
-                <div class="bg-white p-2 rounded shadow border-l-4 border-green-500">
-                    <div class="text-xs text-gray-500">Bon</div>
-                    <div class="font-bold" id="stat-good">0</div>
-                </div>
-                <div class="bg-white p-2 rounded shadow border-l-4 border-red-500">
-                    <div class="text-xs text-gray-500">HS</div>
-                    <div class="font-bold" id="stat-hs">0</div>
-                </div>
-            </div>
+            <div id="loader" class="hidden justify-center py-10"><div class="loader"></div></div>
 
-            <!-- Header Impression -->
-            <div class="hidden print-only mb-6 text-center">
-                <h2 class="text-2xl font-bold">État de Recensement des Immobilisations</h2>
-                <p>EPSP Berriane - <span id="print-date"></span></p>
-            </div>
-
-            <!-- Loading State -->
-            <div id="loader" class="hidden justify-center py-10">
-                <div class="loader"></div>
-            </div>
-
-            <!-- Table -->
-            <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="bg-white rounded-xl shadow overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full leading-normal" id="inventory-table">
-                        <thead>
-                            <tr class="bg-gray-100 text-gray-600 uppercase text-xs leading-normal">
-                                <th class="py-3 px-6 text-left">N° Inventaire</th>
-                                <th class="py-3 px-6 text-left">Désignation</th>
-                                <th class="py-3 px-6 text-center">État</th>
-                                <th class="py-3 px-6 text-left">Localisation</th>
-                                <th class="py-3 px-6 text-left hidden md:table-cell">Catégorie</th>
-                                <th class="py-3 px-6 text-left hidden md:table-cell">Observations</th>
-                                <th class="py-3 px-6 text-left hidden md:table-cell">Saisie par</th>
-                                <th class="py-3 px-6 text-center no-print">Actions</th>
+                    <table class="w-full text-right border-collapse">
+                        <thead class="bg-gray-100 text-gray-600 text-xs font-bold uppercase">
+                            <tr>
+                                <th class="p-4">رقم الجرد</th>
+                                <th class="p-4">التعيين</th>
+                                <th class="p-4 text-center">الحالة</th>
+                                <th class="p-4">الموقع</th>
+                                <th class="p-4 hidden md:table-cell">المصلحة</th>
+                                <th class="p-4 text-center no-print">إجراءات</th>
                             </tr>
                         </thead>
-                        <tbody id="table-body" class="text-gray-600 text-sm font-light">
-                            <!-- Les données seront injectées ici par JS -->
-                        </tbody>
+                        <tbody id="table-body" class="text-sm divide-y"></tbody>
                     </table>
                 </div>
             </div>
-            
-            <!-- Message si vide -->
-            <div id="empty-state" class="hidden text-center py-10 text-gray-500">
-                <i class="fa-solid fa-box-open text-4xl mb-3"></i>
-                <p>Aucun matériel recensé pour le moment.</p>
+            <div id="empty-state" class="hidden text-center py-10 text-gray-400">
+                <i class="fa-solid fa-box-open text-4xl mb-2"></i>
+                <p>لا يوجد عتاد مسجل حالياً.</p>
             </div>
         </main>
     </section>
 
-    <!-- MODAL AJOUT -->
-    <div id="modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-40 no-print">
-        <div class="relative top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold text-gray-900">Nouvelle fiche d'inventaire</h3>
-                <button onclick="closeModal()" class="text-gray-500 hover:text-red-500"><i class="fa-solid fa-times"></i></button>
-            </div>
+    <!-- Modals -->
+    <!-- (Add Item, Change Password, Add User Modals - Consistent with your Logic) -->
+    <div id="modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg w-full max-w-lg p-6">
+            <h2 class="text-xl font-bold mb-4">إضافة عتاد جديد</h2>
             <form id="inventory-form" class="space-y-4">
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">N° Inventaire</label>
-                        <input type="text" name="inv_number" required placeholder="Ex: INV-2024-001" class="w-full border rounded p-2 text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">Catégorie</label>
-                        <select name="category" class="w-full border rounded p-2 text-sm bg-white">
-                            <option value="Informatique">Informatique</option>
-                            <option value="Mobilier">Mobilier de Bureau</option>
-                            <option value="Electronique">Électronique</option>
-                            <option value="Medical">Médical</option>
-                            <option value="Autre">Autre</option>
-                        </select>
-                    </div>
+                    <input type="text" name="inv_number" required placeholder="رقم الجرد" class="border p-2 rounded text-left" dir="ltr">
+                    <select name="category" class="border p-2 rounded">
+                        <option value="Informatique">إعلام آلي</option>
+                        <option value="Mobilier">أثاث مكتبي</option>
+                        <option value="Medical">عتاد طبي</option>
+                    </select>
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1">Désignation</label>
-                    <input type="text" name="designation" required placeholder="Nom du matériel" class="w-full border rounded p-2 text-sm">
-                </div>
+                <input type="text" name="designation" required placeholder="التعيين (اسم الجهاز)" class="w-full border p-2 rounded">
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">État</label>
-                        <select name="condition" class="w-full border rounded p-2 text-sm bg-white">
-                            <option value="Bon">Bon</option>
-                            <option value="Moyen">Moyen</option>
-                            <option value="HS">HS (Hors Service)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">Localisation</label>
-                        <input type="text" name="location" required placeholder="Bureau 102" class="w-full border rounded p-2 text-sm">
-                    </div>
+                    <select name="condition" class="border p-2 rounded">
+                        <option value="Bon">جيد (Bon)</option>
+                        <option value="Moyen">متوسط (Moyen)</option>
+                        <option value="HS">معطل (HS)</option>
+                    </select>
+                    <input type="text" name="location" required placeholder="المكان (مثلا: مكتب 10)" class="border p-2 rounded">
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1">Observations</label>
-                    <textarea name="observations" rows="2" placeholder="R.A.S" class="w-full border rounded p-2 text-sm"></textarea>
-                </div>
-                <div class="flex justify-end pt-2">
-                    <button type="button" onclick="closeModal()" class="mr-2 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Annuler</button>
-                    <button type="submit" class="px-4 py-2 bg-epsp-600 text-white rounded hover:bg-epsp-800">Enregistrer</button>
+                <textarea name="observations" placeholder="ملاحظات إضافية..." class="w-full border p-2 rounded"></textarea>
+                <div class="flex gap-2 justify-end mt-4">
+                    <button type="button" onclick="closeModal()" class="bg-gray-200 px-4 py-2 rounded">إلغاء</button>
+                    <button type="submit" class="bg-epsp-600 text-white px-4 py-2 rounded">حفظ</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- MODAL MOT DE PASSE -->
-    <div id="password-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-40 no-print">
-        <div class="relative top-20 mx-auto p-5 border w-full max-w-sm shadow-lg rounded-md bg-white">
-            <h3 class="text-lg font-bold text-gray-900 mb-4">Changer mot de passe</h3>
+    <div id="user-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg w-full max-w-md p-6">
+            <h2 class="text-xl font-bold mb-4">إضافة مستخدم (عامل) جديد</h2>
+            <form id="user-form" class="space-y-3">
+                <input type="text" name="first_name" placeholder="الاسم" required class="w-full border p-2 rounded">
+                <input type="text" name="last_name" placeholder="اللقب" required class="w-full border p-2 rounded">
+                <input type="text" name="service" placeholder="المصلحة" required class="w-full border p-2 rounded">
+                <input type="email" name="email" placeholder="البريد الإلكتروني" required class="w-full border p-2 rounded text-left" dir="ltr">
+                <input type="password" name="password" placeholder="كلمة المرور" required class="w-full border p-2 rounded text-left" dir="ltr">
+                <div class="flex gap-2 justify-end mt-4">
+                    <button type="button" onclick="closeUserModal()" class="bg-gray-200 px-4 py-2 rounded">إلغاء</button>
+                    <button type="submit" class="bg-epsp-600 text-white px-4 py-2 rounded">إضافة</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="password-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg w-full max-w-sm p-6">
+            <h2 class="text-lg font-bold mb-4">تغيير كلمة المرور</h2>
             <form id="password-form" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-gray-700">Nouveau mot de passe</label>
-                    <input type="password" id="new-password" required class="w-full border rounded p-2 mt-1">
-                </div>
-                <div class="flex justify-end pt-2">
-                    <button type="button" onclick="closePasswordModal()" class="mr-2 px-4 py-2 bg-gray-200 text-gray-800 rounded">Annuler</button>
-                    <button type="submit" class="px-4 py-2 bg-epsp-600 text-white rounded">Changer</button>
+                <input type="password" id="new-password" required placeholder="كلمة المرور الجديدة" class="w-full border p-2 rounded text-left" dir="ltr">
+                <div class="flex gap-2 justify-end">
+                    <button type="button" onclick="closePasswordModal()" class="bg-gray-200 px-4 py-2 rounded">إلغاء</button>
+                    <button type="submit" class="bg-epsp-600 text-white px-4 py-2 rounded">تحديث</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- LOGIC JAVASCRIPT -->
     <script>
         let currentUser = null;
         let inventoryData = [];
 
-        // --- INIT ---
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('print-date').innerText = new Date().toLocaleDateString('fr-FR');
-            checkSession();
-        });
+        // --- PDF LOGIC ---
+        const drawHeaderService = (doc, title, serviceName) => {
+            doc.setTextColor(0);
+            doc.setFont("helvetica", "bold").setFontSize(10);
+            doc.text("République Algérienne Démocratique Et Populaire", 105, 15, {align:"center"});
+            doc.text("Ministère de la Santé", 105, 20, {align:"center"});
+            doc.setFont("helvetica", "normal").setFontSize(9);
+            doc.text("Direction de la Santé et de la Population de la Wilaya de Ghardaïa", 20, 30);
+            doc.text("Etablissement Public de santé de proximité - Berriane", 20, 35);
+            doc.setFont("helvetica", "bold").text("" + serviceName, 20, 40);
+            doc.setDrawColor(0).setLineWidth(0.5).line(20, 43, 190, 43);
+            doc.setFontSize(14).text(title, 105, 52, {align:"center"});
+        };
 
-        // --- AUTH ---
-        function checkSession() {
+        const drawFooterService = (doc) => {
+            const footerY = 250; 
+            doc.setFont("helvetica", "normal").setFontSize(10);
+            doc.text("Berriane le : " + new Date().toLocaleDateString('fr-FR'), 140, footerY);
+            doc.setFont("helvetica", "bold").text("Le Chef de Service", 155, footerY + 10);
+        };
+
+        function generatePDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            drawHeaderService(doc, "ETAT DE RECENSEMENT DES IMMOBILISATIONS", currentUser.service);
+            
+            const rows = inventoryData.map(i => [
+                i.observations || '-',
+                i.location,
+                i.condition,
+                i.designation,
+                i.inv_number
+            ]);
+
+            doc.autoTable({
+                head: [['Observations', 'Localisation', 'Etat', 'Désignation', 'N° Inventaire']],
+                body: rows,
+                startY: 60,
+                theme: 'grid',
+                styles: { halign: 'center', fontSize: 9 }
+            });
+            
+            drawFooterService(doc);
+            doc.save(`Inventaire_${currentUser.service}.pdf`);
+        }
+
+        // --- AUTH & APP LOGIC ---
+        async function load() {
             const token = localStorage.getItem('token');
-            const userStr = localStorage.getItem('user');
-            if (token && userStr) {
-                currentUser = JSON.parse(userStr);
-                document.getElementById('user-display').innerText = `${currentUser.first_name} ${currentUser.last_name}`;
-                showApp();
-            } else {
-                showLogin();
+            const u = localStorage.getItem('user');
+            if(token && u) {
+                currentUser = JSON.parse(u);
+                document.getElementById('user-display').innerText = `${currentUser.first_name} (${currentUser.service})`;
+                if(currentUser.email.includes('admin')) document.getElementById('admin-btn').classList.remove('hidden');
+                document.getElementById('auth-view').classList.add('hidden');
+                document.getElementById('app-view').classList.remove('hidden');
+                fetchInventory();
             }
         }
 
-        function showLogin() {
-            document.getElementById('auth-view').classList.remove('hidden');
-            document.getElementById('app-view').classList.add('hidden');
-        }
-
-        function showApp() {
-            document.getElementById('auth-view').classList.add('hidden');
-            document.getElementById('app-view').classList.remove('hidden');
-            document.getElementById('app-view').classList.add('flex');
-            fetchInventory();
-        }
-
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const errorDiv = document.getElementById('login-error');
-            
-            errorDiv.classList.add('hidden');
-
-            try {
-                const res = await fetch(`${API_URL}/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-                
-                const data = await res.json();
-                
-                if (!res.ok) throw new Error(data.error || 'Erreur de connexion');
-
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('user', JSON.stringify(data.user));
-                checkSession();
-
-            } catch (err) {
-                errorDiv.innerText = err.message;
-                errorDiv.classList.remove('hidden');
-            }
-        });
-
-        function logout() {
-            localStorage.clear();
-            currentUser = null;
-            location.reload();
-        }
-
-        // --- INVENTORY LOGIC ---
         async function fetchInventory() {
-            const loader = document.getElementById('loader');
-            const tbody = document.getElementById('table-body');
-            const emptyState = document.getElementById('empty-state');
-            
-            loader.classList.remove('hidden');
-            tbody.innerHTML = '';
-            loader.classList.add('flex');
-
-            try {
-                const res = await fetch(`${API_URL}/inventory`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-                });
-                if (res.status === 401) return logout();
-                
-                inventoryData = await res.json();
-                renderTable(inventoryData);
-                updateStats(inventoryData);
-
-            } catch (err) {
-                showToast('Erreur de chargement', 'red');
-            } finally {
-                loader.classList.add('hidden');
-                loader.classList.remove('flex');
-            }
+            const res = await fetch(`${API_URL}/inventory`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+            if (res.status === 401) return logout();
+            inventoryData = await res.json();
+            renderTable(inventoryData);
         }
 
         function renderTable(items) {
             const tbody = document.getElementById('table-body');
-            const emptyState = document.getElementById('empty-state');
-            
+            const empty = document.getElementById('empty-state');
             tbody.innerHTML = '';
-            
-            if (items.length === 0) {
-                emptyState.classList.remove('hidden');
-                return;
-            }
-            emptyState.classList.add('hidden');
+            if(!items.length) return empty.classList.remove('hidden');
+            empty.classList.add('hidden');
 
             items.forEach(item => {
-                let badgeClass = '';
-                if(item.condition === 'Bon') badgeClass = 'bg-green-200 text-green-700';
-                else if(item.condition === 'Moyen') badgeClass = 'bg-yellow-200 text-yellow-700';
-                else badgeClass = 'bg-red-200 text-red-700';
-
                 const tr = document.createElement('tr');
-                tr.className = 'border-b border-gray-200 hover:bg-gray-50';
+                tr.className = "hover:bg-blue-50 transition";
                 tr.innerHTML = `
-                    <td class="py-3 px-6 text-left whitespace-nowrap font-medium">${item.inv_number}</td>
-                    <td class="py-3 px-6 text-left">
-                        <span class="block text-gray-900 font-bold md:font-normal">${item.designation}</span>
-                        <span class="md:hidden text-xs text-gray-500 block">${item.category}</span>
+                    <td class="p-4 font-bold text-epsp-600">${item.inv_number}</td>
+                    <td class="p-4 font-medium">${item.designation}</td>
+                    <td class="p-4 text-center">
+                        <span class="px-2 py-1 rounded-full text-xs font-bold ${item.condition === 'Bon' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                            ${item.condition}
+                        </span>
                     </td>
-                    <td class="py-3 px-6 text-center">
-                        <span class="${badgeClass} py-1 px-3 rounded-full text-xs font-bold">${item.condition}</span>
-                    </td>
-                    <td class="py-3 px-6 text-left text-xs md:text-sm">${item.location}</td>
-                    <td class="py-3 px-6 text-left hidden md:table-cell text-xs">${item.category}</td>
-                    <td class="py-3 px-6 text-left hidden md:table-cell text-xs italic">${item.observations || '-'}</td>
-                    <td class="py-3 px-6 text-left hidden md:table-cell text-xs text-gray-400">${item.first_name || 'Admin'}</td>
-                    <td class="py-3 px-6 text-center no-print">
-                        <button onclick="deleteItem(${item.id})" class="text-red-500 hover:text-red-700 transform hover:scale-110">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
+                    <td class="p-4 text-gray-500">${item.location}</td>
+                    <td class="p-4 hidden md:table-cell text-xs">${item.user_service || '-'}</td>
+                    <td class="p-4 text-center no-print">
+                        <button onclick="deleteItem(${item.id})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        // --- SEARCH ---
-        document.getElementById('search-input').addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            const filtered = inventoryData.filter(item => 
-                item.inv_number.toLowerCase().includes(term) ||
-                item.designation.toLowerCase().includes(term) ||
-                item.location.toLowerCase().includes(term)
-            );
-            renderTable(filtered);
-        });
-
-        // --- ADD ITEM ---
-        document.getElementById('inventory-form').addEventListener('submit', async (e) => {
+        document.getElementById('login-form').onsubmit = async (e) => {
             e.preventDefault();
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData.entries());
-
-            try {
-                const res = await fetch(`${API_URL}/inventory`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
-                    body: JSON.stringify(data)
-                });
-                
-                if (res.ok) {
-                    showToast('Fiche créée avec succès', 'green');
-                    closeModal();
-                    e.target.reset();
-                    fetchInventory();
-                } else {
-                    throw new Error('Erreur sauvegarde');
-                }
-            } catch (err) {
-                showToast('Erreur lors de l\'enregistrement', 'red');
+            const res = await fetch(`${API_URL}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: e.target[0].value, password: e.target[1].value })
+            });
+            const data = await res.json();
+            if(data.token) {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+                load();
+            } else {
+                document.getElementById('login-error').innerText = data.error;
+                document.getElementById('login-error').classList.remove('hidden');
             }
-        });
+        };
+
+        document.getElementById('inventory-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            await fetch(`${API_URL}/inventory`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(Object.fromEntries(fd))
+            });
+            closeModal();
+            fetchInventory();
+        };
+
+        document.getElementById('user-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const res = await fetch(`${API_URL}/users`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(Object.fromEntries(fd))
+            });
+            if(res.ok) { showToast('تمت الإضافة بنجاح'); closeUserModal(); }
+        };
 
         async function deleteItem(id) {
-            if(!confirm('Voulez-vous vraiment supprimer cet élément ?')) return;
-            
-            try {
-                const res = await fetch(`${API_URL}/inventory/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-                });
-                if(res.ok) {
-                    showToast('Élément supprimé', 'blue');
-                    fetchInventory();
-                }
-            } catch(err) {
-                showToast('Erreur suppression', 'red');
-            }
+            if(!confirm('هل أنت متأكد من حذف هذا العنصر؟')) return;
+            await fetch(`${API_URL}/inventory/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+            fetchInventory();
         }
 
-        // --- PASSWORD CHANGE ---
-        document.getElementById('password-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const newPassword = document.getElementById('new-password').value;
-            try {
-                const res = await fetch(`${API_URL}/change-password`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
-                    body: JSON.stringify({ newPassword })
-                });
-                if(res.ok) {
-                    showToast('Mot de passe mis à jour', 'green');
-                    closePasswordModal();
-                } else {
-                    showToast('Erreur serveur', 'red');
-                }
-            } catch(err) {
-                showToast('Erreur technique', 'red');
-            }
-        });
-
-        // --- UTILS ---
-        function updateStats(items) {
-            document.getElementById('stat-total').innerText = items.length;
-            document.getElementById('stat-good').innerText = items.filter(i => i.condition === 'Bon').length;
-            document.getElementById('stat-hs').innerText = items.filter(i => i.condition === 'HS').length;
-        }
-
-        function exportToExcel() {
-            const wb = XLSX.utils.book_new();
-            // Formatter les données pour l'export (retirer les IDs, nettoyer)
-            const exportData = inventoryData.map(item => ({
-                "N° Inventaire": item.inv_number,
-                "Désignation": item.designation,
-                "État": item.condition,
-                "Localisation": item.location,
-                "Catégorie": item.category,
-                "Observations": item.observations,
-                "Saisie par": `${item.first_name} ${item.last_name}`,
-                "Date Saisie": item.created_at
-            }));
-            
-            const ws = XLSX.utils.json_to_sheet(exportData);
-            XLSX.utils.book_append_sheet(wb, ws, "Inventaire");
-            XLSX.writeFile(wb, "Inventaire_EPSP_Berriane.xlsx");
-        }
-
-        function showToast(msg, color) {
+        function showToast(m) { 
             const t = document.getElementById('toast');
-            t.className = `fixed top-5 right-5 z-50 bg-white shadow-lg rounded px-4 py-3 border-l-4 border-${color}-500 flex items-center animate-bounce`;
-            t.innerHTML = `<i class="fa-solid fa-info-circle text-${color}-500 mr-2"></i> ${msg}`;
-            t.classList.remove('hidden');
+            t.innerText = m; t.classList.remove('hidden');
             setTimeout(() => t.classList.add('hidden'), 3000);
         }
 
-        // Modals
-        const openModal = () => document.getElementById('modal').classList.remove('hidden');
-        const closeModal = () => document.getElementById('modal').classList.add('hidden');
-        const openPasswordModal = () => document.getElementById('password-modal').classList.remove('hidden');
-        const closePasswordModal = () => document.getElementById('password-modal').classList.add('hidden');
+        function logout() { localStorage.clear(); location.reload(); }
+        function openModal() { document.getElementById('modal').classList.remove('hidden'); }
+        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+        function openUserModal() { document.getElementById('user-modal').classList.remove('hidden'); }
+        function closeUserModal() { document.getElementById('user-modal').classList.add('hidden'); }
+        function openPasswordModal() { document.getElementById('password-modal').classList.remove('hidden'); }
+        function closePasswordModal() { document.getElementById('password-modal').classList.add('hidden'); }
+
+        load();
     </script>
 </body>
 </html>
