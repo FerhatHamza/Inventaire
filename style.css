@@ -1,0 +1,7 @@
+/* Responsive adjustments for mobile touch targets */
+input, select, button {
+    min-height: 44px;
+    font-size: 16px; /* Prevents auto-zoom on iPhone */
+}
+
+[x-cloak] { display: none !important; }
