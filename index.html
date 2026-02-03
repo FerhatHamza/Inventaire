@@ -2,62 +2,90 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EPSP Berriane - Inventaire</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Epipharm Vigilance</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.13.3/cdn.min.js" defer></script>
     <link rel="stylesheet" href="style.css">
     <script src="app.js" defer></script>
 </head>
-<body class="bg-gray-50 text-gray-800" x-data="app()">
-    <div x-show="!currentUser" class="min-h-screen flex items-center justify-center p-4">
-        <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
-            <h1 class="text-2xl font-bold text-blue-700 text-center mb-6">EPSP Berriane</h1>
-            <form @submit.prevent="login">
-                <input type="email" x-model="loginForm.email" placeholder="Email" class="w-full p-2 border rounded mb-4" required>
-                <input type="password" x-model="loginForm.password" placeholder="Mot de passe" class="w-full p-2 border rounded mb-6" required>
-                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded font-bold">Se Connecter</button>
+<body class="text-slate-800 bg-gray-50" x-data="app()">
+
+    <div x-show="!currentUser" x-cloak class="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-b from-blue-900 to-slate-800">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm">
+            <h1 class="text-3xl font-extrabold text-blue-800 text-center mb-6">Epipharm Vigilance</h1>
+            <form @submit.prevent="login" class="space-y-4">
+                <input type="email" x-model="loginForm.email" class="w-full p-3 border rounded" placeholder="Email" required>
+                <input type="password" x-model="loginForm.password" class="w-full p-3 border rounded" placeholder="Mot de passe" required>
+                <button type="submit" class="w-full bg-blue-700 text-white py-3 rounded font-bold" :disabled="loading">
+                    <span x-show="!loading">Se Connecter</span>
+                    <span x-show="loading">Connexion...</span>
+                </button>
             </form>
-            <p x-show="error" class="text-red-500 mt-4 text-center" x-text="error"></p>
+            <p x-show="error" class="text-red-500 text-sm mt-4 text-center" x-text="error"></p>
         </div>
     </div>
 
-    <div x-show="currentUser" style="display: none;">
-        <header class="bg-blue-700 text-white p-4 sticky top-0 z-10">
-            <div class="max-w-4xl mx-auto flex justify-between items-center">
-                <span class="font-bold">Inventaire EPSPB</span>
-                <button @click="logout" class="bg-red-500 px-3 py-1 rounded text-sm">Sortir</button>
+    <div x-show="currentUser" x-cloak>
+        <header class="bg-blue-800 text-white p-4 sticky top-0 z-50 shadow-md">
+            <div class="max-w-5xl mx-auto flex justify-between items-center">
+                <div>
+                    <h1 class="font-bold">Inventaire EPSPB</h1>
+                    <small class="text-blue-200" x-text="currentUser?.first_name + ' ' + currentUser?.last_name"></small>
+                </div>
+                <div class="flex gap-2">
+                    <button @click="showProfile = true" class="bg-blue-700 p-2 rounded">⚙️</button>
+                    <button @click="logout" class="bg-red-500 px-3 py-2 rounded font-bold">Sortir</button>
+                </div>
             </div>
         </header>
 
-        <main class="max-w-4xl mx-auto p-4">
-            <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-                <h2 class="font-bold mb-4 border-b pb-2 text-lg">Nouveau Recensement</h2>
+        <main class="max-w-5xl mx-auto p-4 space-y-6">
+            <div class="bg-white p-5 rounded-xl shadow border border-gray-200">
+                <h2 class="font-bold mb-4">Nouveau Matériel</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input type="text" x-model="newItem.inv_number" placeholder="N° Inventaire (ex: EPSPB/001)" class="p-2 border rounded">
+                    <input type="text" x-model="newItem.inv_number" placeholder="N° Inventaire (ex: EPSPB/...)" class="p-2 border rounded">
                     <input type="text" x-model="newItem.designation" placeholder="Désignation" class="p-2 border rounded">
-                    <input type="text" x-model="newItem.location" placeholder="Localisation (Bureau)" class="p-2 border rounded">
-                    <select x-model="newItem.condition" class="p-2 border rounded">
-                        <option value="Bon">Bon État</option>
-                        <option value="Moyen">Moyen / Usé</option>
-                        <option value="HS">Hors Service</option>
+                    <select x-model="newItem.category" class="p-2 border rounded">
+                        <option value="Informatique">Informatique</option>
+                        <option value="Mobilier">Mobilier</option>
+                        <option value="Médical">Médical</option>
+                        <option value="Autre">Autre</option>
                     </select>
+                    <input type="text" x-model="newItem.location" placeholder="Localisation" class="p-2 border rounded">
+                    <select x-model="newItem.condition" class="p-2 border rounded">
+                        <option value="Bon">✅ Bon État</option>
+                        <option value="Moyen">⚠️ Moyen</option>
+                        <option value="HS">❌ HS</option>
+                    </select>
+                    <input type="text" x-model="newItem.observations" placeholder="Observations" class="p-2 border rounded md:col-span-2">
                 </div>
-                <button @click="addItem" class="w-full mt-4 bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700">Enregistrer l'article</button>
+                <button @click="addItem" class="w-full mt-4 bg-emerald-600 text-white py-3 rounded font-bold">Enregistrer</button>
             </div>
 
-            <div class="space-y-4">
+            <div class="space-y-3">
                 <template x-for="item in items" :key="item.id">
-                    <div class="bg-white p-4 rounded shadow border-l-4" :class="item.condition === 'HS' ? 'border-red-500' : (item.condition === 'Bon' ? 'border-green-500' : 'border-yellow-500')">
+                    <div class="bg-white p-4 rounded shadow border-l-4" :class="{'border-green-500': item.condition==='Bon', 'border-yellow-500': item.condition==='Moyen', 'border-red-500': item.condition==='HS'}">
                         <div class="flex justify-between">
                             <span class="font-bold" x-text="item.designation"></span>
-                            <span class="text-xs text-gray-400 font-mono" x-text="item.inv_number"></span>
+                            <span class="text-xs text-gray-500" x-text="item.inv_number"></span>
                         </div>
-                        <div class="text-sm text-gray-600 mt-1">📍 <span x-text="item.location"></span></div>
+                        <div class="text-sm text-gray-600 mt-1">
+                            📍 <span x-text="item.location"></span> | 🏷️ <span x-text="item.category"></span>
+                        </div>
                     </div>
                 </template>
             </div>
         </main>
+
+        <div x-show="showProfile" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" style="display:none">
+            <div class="bg-white p-6 rounded-lg w-full max-w-sm" @click.away="showProfile = false">
+                <h3 class="font-bold text-lg mb-4">Changer mot de passe</h3>
+                <input type="password" x-model="passForm.new" placeholder="Nouveau pass" class="w-full p-2 border rounded mb-4">
+                <button @click="changePassword" class="w-full bg-blue-600 text-white py-2 rounded">Valider</button>
+                <button @click="showProfile = false" class="w-full mt-2 text-gray-500">Annuler</button>
+            </div>
+        </div>
     </div>
 </body>
 </html>
